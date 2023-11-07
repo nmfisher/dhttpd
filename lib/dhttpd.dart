@@ -36,9 +36,18 @@ class Dhttpd {
   }) async {
     path ??= Directory.current.path;
 
-    final pipeline = const Pipeline()
-        .addMiddleware(logRequests())
-        .addHandler(createStaticHandler(path, defaultDocument: 'index.html'));
+    var inner = createStaticHandler(path, defaultDocument: 'index.html');
+
+    final wrapper = (Request request) async {
+      var response = await inner(request);
+      return response.change(headers: {
+        "Cross-Origin-Embedder-Policy": "require-corp",
+        "Cross-Origin-Opener-Policy": "same-origin"
+      });
+    };
+
+    final pipeline =
+        const Pipeline().addMiddleware(logRequests()).addHandler(wrapper);
 
     final server = await io.serve(pipeline, address, port);
     return Dhttpd._(server, path);
